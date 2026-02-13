@@ -1,0 +1,46 @@
+{
+  "name": "contributor-history",
+  "version": "1.0.0",
+  "description": "The missing GitHub contributor history graph — like star-history but for contributors",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "d3-array": "^3.2.4",
+    "d3-axis": "^3.0.0",
+    "d3-scale": "^4.0.2",
+    "d3-selection": "^3.0.0",
+    "d3-shape": "^3.2.0",
+    "d3-time": "^3.1.0",
+    "d3-time-format": "^4.1.0",
+    "d3-transition": "^3.0.1",
+    "html2canvas": "^1.4.1",
+    "next": "^14.2.35",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
+    "@types/d3-array": "^3.2.2",
+    "@types/d3-axis": "^3.0.6",
+    "@types/d3-scale": "^4.0.9",
+    "@types/d3-selection": "^3.0.11",
+    "@types/d3-shape": "^3.1.8",
+    "@types/d3-time": "^3.0.4",
+    "@types/d3-time-format": "^4.0.3",
+    "@types/d3-transition": "^3.0.9",
+    "@types/node": "^25.2.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "autoprefixer": "^10.4.24",
+    "eslint": "^9.39.2",
+    "eslint-config-next": "^16.1.6",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.9.3"
+  }
+}
