@@ -26,19 +26,6 @@ function wobblePath(pathD: string, magnitude: number = 2): string {
   });
 }
 
-// Draw a 4-point star at (cx, cy)
-function starPath(cx: number, cy: number, outerR: number, innerR: number): string {
-  const points = 4;
-  const step = Math.PI / points;
-  const pts: string[] = [];
-  for (let i = 0; i < points * 2; i++) {
-    const r = i % 2 === 0 ? outerR : innerR;
-    const angle = i * step - Math.PI / 2;
-    pts.push(`${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`);
-  }
-  return `M${pts.join('L')}Z`;
-}
-
 export default function ContributorChart({ series, settings, width: propWidth }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -50,7 +37,7 @@ export default function ContributorChart({ series, settings, width: propWidth }:
     if (!svg || !container) return;
 
     const width = propWidth ?? container.clientWidth;
-    const margin = { ...CHART_MARGIN, bottom: 55, left: 65, right: 80 };
+    const margin = { ...CHART_MARGIN, bottom: 55, left: 65, right: 90 };
     const innerW = width - margin.left - margin.right;
     const innerH = CHART_HEIGHT - margin.top - margin.bottom;
 
@@ -82,31 +69,31 @@ export default function ContributorChart({ series, settings, width: propWidth }:
 
     const defs = root.append('defs');
 
-    // Gradient fills — more opaque and bubbly
+    // Candy gradient fills — thick, opaque, bubbly
     plotData.forEach((s, i) => {
       const grad = defs.append('linearGradient')
         .attr('id', `area-grad-${i}`)
         .attr('x1', '0').attr('y1', '0')
         .attr('x2', '0').attr('y2', '1');
-      grad.append('stop').attr('offset', '0%').attr('stop-color', s.color).attr('stop-opacity', 0.25);
-      grad.append('stop').attr('offset', '100%').attr('stop-color', s.color).attr('stop-opacity', 0.03);
+      grad.append('stop').attr('offset', '0%').attr('stop-color', s.color).attr('stop-opacity', 0.35);
+      grad.append('stop').attr('offset', '100%').attr('stop-color', s.color).attr('stop-opacity', 0.05);
 
-      // Glow filter for end dots
+      // Glow filter
       const filter = defs.append('filter').attr('id', `glow-${i}`);
-      filter.append('feGaussianBlur').attr('stdDeviation', '3').attr('result', 'blur');
+      filter.append('feGaussianBlur').attr('stdDeviation', '4').attr('result', 'blur');
       filter.append('feMerge').selectAll('feMergeNode')
         .data(['blur', 'SourceGraphic']).enter()
         .append('feMergeNode').attr('in', (d: string) => d);
     });
 
-    // Drop shadow filter for end labels
+    // Drop shadow for labels
     const shadow = defs.append('filter').attr('id', 'label-shadow').attr('x', '-20%').attr('y', '-20%').attr('width', '140%').attr('height', '140%');
-    shadow.append('feDropShadow').attr('dx', '0').attr('dy', '1').attr('stdDeviation', '2').attr('flood-opacity', '0.15');
+    shadow.append('feDropShadow').attr('dx', '0').attr('dy', '2').attr('stdDeviation', '3').attr('flood-opacity', '0.12');
 
     const g = root.append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`);
 
-    // Cute dotted gridlines
+    // Bubbly dotted gridlines
     const yTicks = y.ticks(5);
     g.append('g')
       .selectAll('line')
@@ -118,11 +105,12 @@ export default function ContributorChart({ series, settings, width: propWidth }:
       .attr('y1', (d) => y(d))
       .attr('y2', (d) => y(d))
       .attr('stroke', 'var(--color-border)')
-      .attr('stroke-dasharray', '2,6')
-      .attr('stroke-opacity', 0.5)
-      .attr('stroke-linecap', 'round');
+      .attr('stroke-dasharray', '3,8')
+      .attr('stroke-opacity', 0.4)
+      .attr('stroke-linecap', 'round')
+      .attr('stroke-width', 1.5);
 
-    // X Axis — rounded, friendly
+    // X Axis — chunky rounded
     const xAxis = settings.timelineMode
       ? d3Axis.axisBottom(x).ticks(6).tickFormat((d) => formatDayOffset(d as Date))
       : d3Axis.axisBottom(x).ticks(6).tickFormat(d3TimeFormat.timeFormat('%b \'%y') as any);
@@ -130,25 +118,25 @@ export default function ContributorChart({ series, settings, width: propWidth }:
     const xAxisG = g.append('g')
       .attr('transform', `translate(0,${innerH})`)
       .call(xAxis);
-    xAxisG.select('.domain').attr('stroke', 'var(--color-border)').attr('stroke-width', 2).attr('stroke-linecap', 'round');
-    xAxisG.selectAll('.tick line').attr('stroke', 'var(--color-border)').attr('stroke-linecap', 'round');
+    xAxisG.select('.domain').attr('stroke', 'var(--color-border)').attr('stroke-width', 2.5).attr('stroke-linecap', 'round');
+    xAxisG.selectAll('.tick line').attr('stroke', 'var(--color-border)').attr('stroke-linecap', 'round').attr('stroke-width', 2);
     xAxisG.selectAll('.tick text')
       .attr('fill', 'var(--color-muted)')
       .style('font-size', '11px')
-      .style('font-weight', '500');
+      .style('font-weight', '600');
 
-    // Y Axis
+    // Y Axis — chunky rounded
     const yAxisG = g.append('g')
       .call(d3Axis.axisLeft(y).ticks(5).tickFormat((d) => {
         const n = d as number;
         return n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : `${n}`;
       }));
-    yAxisG.select('.domain').attr('stroke', 'var(--color-border)').attr('stroke-width', 2).attr('stroke-linecap', 'round');
-    yAxisG.selectAll('.tick line').attr('stroke', 'var(--color-border)').attr('stroke-linecap', 'round');
+    yAxisG.select('.domain').attr('stroke', 'var(--color-border)').attr('stroke-width', 2.5).attr('stroke-linecap', 'round');
+    yAxisG.selectAll('.tick line').attr('stroke', 'var(--color-border)').attr('stroke-linecap', 'round').attr('stroke-width', 2);
     yAxisG.selectAll('.tick text')
       .attr('fill', 'var(--color-muted)')
       .style('font-size', '11px')
-      .style('font-weight', '500');
+      .style('font-weight', '600');
 
     // Y label
     g.append('text')
@@ -158,10 +146,10 @@ export default function ContributorChart({ series, settings, width: propWidth }:
       .attr('text-anchor', 'middle')
       .attr('fill', 'var(--color-muted)')
       .style('font-size', '12px')
-      .style('font-weight', '600')
-      .text('✨ Contributors');
+      .style('font-weight', '700')
+      .text('💖 Contributors');
 
-    // X label (only in timeline mode)
+    // X label (timeline mode only)
     if (settings.timelineMode) {
       g.append('text')
         .attr('x', innerW / 2)
@@ -169,11 +157,11 @@ export default function ContributorChart({ series, settings, width: propWidth }:
         .attr('text-anchor', 'middle')
         .attr('fill', 'var(--color-muted)')
         .style('font-size', '12px')
-        .style('font-weight', '600')
+        .style('font-weight', '700')
         .text('⏱ Time since first contribution');
     }
 
-    // Line + area generators
+    // Smooth curves
     const lineGen = d3Shape
       .line<{ date: Date; cumulativeContributors: number }>()
       .x((d) => x(d.date))
@@ -187,9 +175,9 @@ export default function ContributorChart({ series, settings, width: propWidth }:
       .y1((d) => y(d.cumulativeContributors))
       .curve(settings.xkcdStyle ? d3Shape.curveBasis : d3Shape.curveMonotoneX);
 
-    // Draw each series with maximum cuteness
+    // Draw each series
     plotData.forEach((s, i) => {
-      // Gradient fill under line
+      // Candy gradient fill
       const areaPath = areaGen(s.data) ?? '';
       g.append('path')
         .attr('d', settings.xkcdStyle ? wobblePath(areaPath, 1.5) : areaPath)
@@ -197,33 +185,32 @@ export default function ContributorChart({ series, settings, width: propWidth }:
         .style('opacity', 0)
         .transition()
         .duration(800)
-        .delay(i * 200)
+        .delay(i * 150)
         .style('opacity', 1);
 
-      // Chunky main line with round caps
       const linePath = lineGen(s.data) ?? '';
       const finalPath = settings.xkcdStyle ? wobblePath(linePath, 2) : linePath;
 
-      // White outline for line (gives it that chunky 2000s sticker feel)
+      // Thick white outline — chunky sticker effect
       g.append('path')
         .attr('d', finalPath)
         .attr('fill', 'none')
         .attr('stroke', 'var(--color-surface)')
-        .attr('stroke-width', 7)
+        .attr('stroke-width', 9)
         .attr('stroke-linecap', 'round')
         .attr('stroke-linejoin', 'round')
         .style('opacity', 0)
         .transition()
         .duration(200)
-        .delay(i * 200)
-        .style('opacity', 0.8);
+        .delay(i * 150)
+        .style('opacity', 0.9);
 
-      // Main colored line
+      // Main candy line — extra thick and smooth
       const line = g.append('path')
         .attr('d', finalPath)
         .attr('fill', 'none')
         .attr('stroke', s.color)
-        .attr('stroke-width', 4)
+        .attr('stroke-width', 5)
         .attr('stroke-linecap', 'round')
         .attr('stroke-linejoin', 'round');
 
@@ -236,55 +223,26 @@ export default function ContributorChart({ series, settings, width: propWidth }:
           .attr('stroke-dashoffset', length)
           .transition()
           .duration(1400)
-          .delay(i * 200)
+          .delay(i * 150)
           .ease((t: number) => t * (2 - t))
           .attr('stroke-dashoffset', 0);
       }
 
-      // ⭐ Milestone stars at notable contributor counts
-      const milestones = [10, 25, 50, 100, 250, 500];
-      s.data.forEach((d, di) => {
-        if (di === 0) return;
-        const prev = s.data[di - 1].cumulativeContributors;
-        const curr = d.cumulativeContributors;
-        milestones.forEach((m) => {
-          if (prev < m && curr >= m) {
-            // Star sparkle!
-            g.append('path')
-              .attr('d', starPath(x(d.date), y(d.cumulativeContributors), 0, 0))
-              .attr('fill', s.color)
-              .attr('stroke', 'var(--color-surface)')
-              .attr('stroke-width', 1.5)
-              .style('filter', `url(#glow-${i})`)
-              .transition()
-              .duration(500)
-              .delay(1400 + i * 200 + di * 2)
-              .attr('d', starPath(x(d.date), y(d.cumulativeContributors), 10, 4))
-              .transition()
-              .duration(300)
-              .attr('d', starPath(x(d.date), y(d.cumulativeContributors), 7, 3));
-          }
-        });
-      });
-
-      // End dot — big chunky circle with white border
+      // End dot — chunky candy dot with glow ring
       const last = s.data[s.data.length - 1];
       if (last) {
-        // Outer glow pulse
+        // Big soft glow
         g.append('circle')
           .attr('cx', x(last.date))
           .attr('cy', y(last.cumulativeContributors))
           .attr('r', 0)
           .attr('fill', s.color)
-          .attr('fill-opacity', 0.15)
+          .attr('fill-opacity', 0.2)
+          .style('filter', `url(#glow-${i})`)
           .transition()
           .duration(800)
-          .delay(1400 + i * 200)
-          .attr('r', 16)
-          .transition()
-          .duration(600)
-          .attr('r', 12)
-          .attr('fill-opacity', 0.08);
+          .delay(1400 + i * 150)
+          .attr('r', 18);
 
         // White ring
         g.append('circle')
@@ -293,11 +251,11 @@ export default function ContributorChart({ series, settings, width: propWidth }:
           .attr('r', 0)
           .attr('fill', 'var(--color-surface)')
           .attr('stroke', s.color)
-          .attr('stroke-width', 3)
+          .attr('stroke-width', 3.5)
           .transition()
           .duration(400)
-          .delay(1400 + i * 200)
-          .attr('r', 8);
+          .delay(1400 + i * 150)
+          .attr('r', 9);
 
         // Inner dot
         g.append('circle')
@@ -307,54 +265,53 @@ export default function ContributorChart({ series, settings, width: propWidth }:
           .attr('fill', s.color)
           .transition()
           .duration(300)
-          .delay(1500 + i * 200)
-          .attr('r', 4);
+          .delay(1500 + i * 150)
+          .attr('r', 5);
 
-        // Bubbly end label — pill background with rounded rect
+        // Bubbly end label — pill shape
         const labelText = last.cumulativeContributors.toLocaleString();
         const repoName = s.repo.split('/')[1] || s.repo;
-        const labelX = x(last.date) + 16;
+        const labelX = x(last.date) + 18;
         const labelY = y(last.cumulativeContributors);
+        const pillW = Math.max(labelText.length * 9 + 16, repoName.length * 7 + 16);
 
         const labelG = g.append('g')
           .style('opacity', 0);
 
         // Pill background
         labelG.append('rect')
-          .attr('x', labelX - 4)
-          .attr('y', labelY - 13)
-          .attr('width', Math.max(labelText.length * 9 + 12, repoName.length * 6.5 + 12))
-          .attr('height', 30)
-          .attr('rx', 10)
-          .attr('ry', 10)
-          .attr('fill', s.color)
-          .attr('fill-opacity', 0.12)
+          .attr('x', labelX - 6)
+          .attr('y', labelY - 15)
+          .attr('width', pillW)
+          .attr('height', 34)
+          .attr('rx', 12)
+          .attr('ry', 12)
+          .attr('fill', 'var(--color-surface)')
           .attr('stroke', s.color)
-          .attr('stroke-opacity', 0.25)
-          .attr('stroke-width', 1)
+          .attr('stroke-width', 2)
           .style('filter', 'url(#label-shadow)');
 
         // Count number
         labelG.append('text')
           .attr('x', labelX + 2)
-          .attr('y', labelY + 3)
+          .attr('y', labelY + 4)
           .attr('fill', s.color)
-          .style('font-size', '14px')
+          .style('font-size', '15px')
           .style('font-weight', '800')
           .text(labelText);
 
-        // Repo name below
+        // Repo name
         labelG.append('text')
           .attr('x', labelX + 2)
-          .attr('y', labelY + 14)
+          .attr('y', labelY + 16)
           .attr('fill', 'var(--color-muted)')
           .style('font-size', '9px')
-          .style('font-weight', '500')
+          .style('font-weight', '600')
           .text(repoName);
 
         labelG.transition()
           .duration(500)
-          .delay(1600 + i * 200)
+          .delay(1600 + i * 150)
           .style('opacity', 1);
       }
     });
@@ -368,18 +325,18 @@ export default function ContributorChart({ series, settings, width: propWidth }:
       .attr('y1', 0)
       .attr('y2', innerH)
       .attr('stroke', 'var(--color-muted)')
-      .attr('stroke-width', 1.5)
-      .attr('stroke-dasharray', '3,5')
-      .attr('stroke-opacity', 0.35)
+      .attr('stroke-width', 2)
+      .attr('stroke-dasharray', '4,6')
+      .attr('stroke-opacity', 0.3)
       .attr('stroke-linecap', 'round');
 
     // Chunky hover dots
     const hoverDots = plotData.map((s) =>
       crosshairG.append('circle')
-        .attr('r', 7)
+        .attr('r', 8)
         .attr('fill', s.color)
         .attr('stroke', 'var(--color-surface)')
-        .attr('stroke-width', 3)
+        .attr('stroke-width', 3.5)
     );
 
     const overlay = g.append('rect')
@@ -411,12 +368,9 @@ export default function ContributorChart({ series, settings, width: propWidth }:
               .attr('cx', x(d.date))
               .attr('cy', y(d.cumulativeContributors));
 
-            const dateStr = settings.timelineMode
-              ? formatDayOffset(d.date)
-              : d.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             const repoName = s.repo.split('/')[1] || s.repo;
             lines.push(
-              `<div style="display:flex;align-items:center;gap:8px;padding:2px 0"><span style="width:10px;height:10px;border-radius:50%;background:${s.color};display:inline-block;flex-shrink:0;box-shadow:0 0 6px ${s.color}60"></span><span style="font-weight:600">${repoName}</span><span style="margin-left:auto;font-weight:800;color:${s.color};font-size:14px">${d.cumulativeContributors.toLocaleString()}</span></div>`,
+              `<div style="display:flex;align-items:center;gap:8px;padding:3px 0"><span style="width:12px;height:12px;border-radius:50%;background:${s.color};display:inline-block;flex-shrink:0;box-shadow:0 0 8px ${s.color}50;border:2px solid white"></span><span style="font-weight:700">${repoName}</span><span style="margin-left:auto;font-weight:800;color:${s.color};font-size:15px">${d.cumulativeContributors.toLocaleString()}</span></div>`,
             );
           }
         });
@@ -429,7 +383,7 @@ export default function ContributorChart({ series, settings, width: propWidth }:
             : d.date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
         })();
 
-        tooltipEl.innerHTML = `<div style="font-size:10px;color:var(--color-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">${headerDate}</div>${lines.join('')}`;
+        tooltipEl.innerHTML = `<div style="font-size:10px;color:var(--color-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;font-weight:700">${headerDate}</div>${lines.join('')}`;
         tooltipEl.style.display = 'block';
 
         const containerRect = container.getBoundingClientRect();
@@ -455,8 +409,8 @@ export default function ContributorChart({ series, settings, width: propWidth }:
   return (
     <div
       ref={containerRef}
-      className="relative w-full rounded-2xl border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-5 animate-fade-up"
-      style={{ boxShadow: 'var(--shadow-lg)' }}
+      className="relative w-full rounded-3xl border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-6 animate-fade-up"
+      style={{ boxShadow: 'var(--shadow-lg), 0 0 0 1px var(--color-border)' }}
       id="chart-container"
     >
       <svg ref={svgRef} className="w-full" />
