@@ -47,8 +47,8 @@ export default function Home() {
         const stats = await fetchContributorStats(repo);
         // Then paginate for the full contributor list
         const allContributors = await fetchAllContributors(repo);
-        const data = buildAccurateSeries(stats, allContributors);
         const total = allContributors.length > stats.length ? allContributors.length : stats.length;
+        const data = buildAccurateSeries(stats, allContributors, total);
         const color = getRepoColor(repo);
 
         setSeries((prev) => {

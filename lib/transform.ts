@@ -49,15 +49,15 @@ export function transformToContributorSeries(
 export function buildAccurateSeries(
   stats: GitHubContributorStats[],
   allContributors: ContributorSummary[],
+  totalCount: number,
 ): ContributorDataPoint[] {
   const baseSeries = transformToContributorSeries(stats);
   if (!baseSeries.length) return baseSeries;
 
-  const statsCount = stats.length;
-  const totalCount = allContributors.length;
+  const statsCount = baseSeries[baseSeries.length - 1].cumulativeContributors;
   const extra = totalCount - statsCount;
 
-  // If paginated data didn't return more than stats, use base series as-is
+  // If no extra contributors, return as-is
   if (extra <= 0) return baseSeries;
 
   // The base series shows when each of the top N contributors first appeared.
