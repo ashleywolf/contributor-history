@@ -2,7 +2,9 @@
 
 **The missing GitHub contributor growth chart** — like [star-history.com](https://star-history.com) but for contributors.
 
-Compare how fast open source projects attract contributors over time with beautiful, shareable charts.
+Compare how fast open source projects attract contributors over time with beautiful, shareable charts. A fun weekend project — because stars are great, but people are what make open source work.
+
+![Contributor History comparing React, Next.js, and VS Code](public/screenshot.png)
 
 ## Features
 
@@ -54,13 +56,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Deploy
 
-### GitHub Pages (automatic)
-
-Push to `main` — the included GitHub Actions workflow builds and deploys automatically.
-
-### Vercel
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/YOUR_USERNAME/contributor-history)
+Push to `main` — the included GitHub Actions workflow builds and deploys to GitHub Pages automatically.
 
 ## Tech Stack
 
@@ -70,10 +66,12 @@ Push to `main` — the included GitHub Actions workflow builds and deploys autom
 - **Tailwind CSS v4**
 - **html2canvas** (PNG export)
 
-## Inspiration
+## Why?
 
-Built in the spirit of [star-history.com](https://star-history.com) — the de facto star history graph for GitHub projects.
+Built for fun, inspired by [star-history.com](https://star-history.com). Stars tell you popularity — contributor count tells you community. Sometimes it's interesting to see which projects are quietly building a broad contributor base vs. which are star magnets maintained by a small team.
+
+This is a hobby project — no guarantees, no roadmap, just vibes. PRs welcome if you want to make it better! ✨
 
 ## License
 
-MIT
+[MIT](LICENSE)
