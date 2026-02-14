@@ -43,13 +43,12 @@ export default function Home() {
       });
 
       try {
-        // Fetch both data sources in parallel
-        const [stats, allContributors] = await Promise.all([
-          fetchContributorStats(repo),
-          fetchAllContributors(repo),
-        ]);
+        // Fetch stats first (may need retries while GitHub computes)
+        const stats = await fetchContributorStats(repo);
+        // Then paginate for the full contributor list
+        const allContributors = await fetchAllContributors(repo);
         const data = buildAccurateSeries(stats, allContributors);
-        const total = allContributors.length || stats.length;
+        const total = allContributors.length > stats.length ? allContributors.length : stats.length;
         const color = getRepoColor(repo);
 
         setSeries((prev) => {
