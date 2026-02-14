@@ -5,8 +5,7 @@ import ContributorChart from '@/components/ContributorChart';
 import RepoInput from '@/components/RepoInput';
 import Toolbar from '@/components/Toolbar';
 import EmbedSnippet from '@/components/EmbedSnippet';
-import TokenInput from '@/components/TokenInput';
-import { fetchContributorStats, getStoredToken, setStoredToken, clearStoredToken } from '@/lib/github';
+import { fetchContributorStats, fetchTotalContributorCount } from '@/lib/github';
 import { transformToContributorSeries } from '@/lib/transform';
 import { parseHash, buildHash } from '@/lib/url';
 import { getColor } from '@/lib/colors';
@@ -21,8 +20,6 @@ export default function Home() {
   const [settings, setSettings] = useState<ChartSettings>({ timelineMode: false, xkcdStyle: false });
   const [loading, setLoading] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Map<string, string>>(new Map());
-  const [token, setToken] = useState('');
-  const [hasStoredToken, setHasStoredToken] = useState(false);
   const [theme, setTheme] = useState<Theme>('system');
   const [initialized, setInitialized] = useState(false);
   const colorMap = useRef(new Map<string, string>());
@@ -38,7 +35,6 @@ export default function Home() {
   // Fetch data for a single repo
   const fetchRepo = useCallback(
     async (repo: string) => {
-      const storedToken = getStoredToken();
       setLoading((prev) => new Set(prev).add(repo));
       setErrors((prev) => {
         const next = new Map(prev);
@@ -47,15 +43,18 @@ export default function Home() {
       });
 
       try {
-        const stats = await fetchContributorStats(repo, storedToken ?? undefined);
+        const stats = await fetchContributorStats(repo);
         const data = transformToContributorSeries(stats);
         const color = getRepoColor(repo);
+
+        // Get real total from /contributors endpoint (stats API caps at 100)
+        const realTotal = await fetchTotalContributorCount(repo);
 
         setSeries((prev) => {
           const filtered = prev.filter((s) => s.repo !== repo);
           return [
             ...filtered,
-            { repo, data, totalContributors: stats.length, color, visible: true },
+            { repo, data, totalContributors: realTotal ?? stats.length, color, visible: true },
           ].sort((a, b) => a.repo.localeCompare(b.repo));
         });
       } catch (err: any) {
@@ -73,12 +72,6 @@ export default function Home() {
 
   // Initialize from URL hash
   useEffect(() => {
-    const stored = getStoredToken();
-    if (stored) {
-      setToken(stored);
-      setHasStoredToken(true);
-    }
-
     const { repos: hashRepos, settings: hashSettings } = parseHash(window.location.hash);
     if (hashRepos.length) {
       setRepos(hashRepos);
@@ -169,19 +162,6 @@ export default function Home() {
     setTheme((t) => (t === 'system' ? 'light' : t === 'light' ? 'dark' : 'system'));
   }, []);
 
-  const handleSaveToken = useCallback(() => {
-    if (token.trim()) {
-      setStoredToken(token.trim());
-      setHasStoredToken(true);
-    }
-  }, [token]);
-
-  const handleClearToken = useCallback(() => {
-    clearStoredToken();
-    setToken('');
-    setHasStoredToken(false);
-  }, []);
-
   const colorsMap = new Map(repos.map((r) => [r.repo, getRepoColor(r.repo)]));
 
   const hasData = series.some((s) => s.data.length > 0);
@@ -212,15 +192,6 @@ export default function Home() {
         loading={loading}
         errors={errors}
         colors={colorsMap}
-      />
-
-      {/* Token input */}
-      <TokenInput
-        token={token}
-        onTokenChange={setToken}
-        onSave={handleSaveToken}
-        onClear={handleClearToken}
-        hasStored={hasStoredToken}
       />
 
       {/* Toolbar */}
@@ -303,7 +274,7 @@ export default function Home() {
           <a href="https://docs.github.com/en/rest/metrics/statistics" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--color-primary)] transition-colors">
             GitHub REST API
           </a>
-          {' · '}Limited to ~500 contributors per repo
+          {' · '}Contributor counts are approximate
         </p>
         <p>
           Inspired by{' '}

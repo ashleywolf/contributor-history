@@ -4,14 +4,10 @@ const API_BASE = 'https://api.github.com';
 const MAX_RETRIES = 8;
 const RETRY_DELAY_MS = 3000;
 
-function getHeaders(token?: string): Record<string, string> {
-  const headers: Record<string, string> = {
+function getHeaders(): Record<string, string> {
+  return {
     Accept: 'application/vnd.github.v3+json',
   };
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-  return headers;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -31,11 +27,10 @@ export class GitHubAPIError extends Error {
 
 export async function fetchContributorStats(
   repo: string,
-  token?: string,
   onRetry?: (attempt: number) => void,
 ): Promise<GitHubContributorStats[]> {
   const url = `${API_BASE}/repos/${repo}/stats/contributors`;
-  const headers = getHeaders(token);
+  const headers = getHeaders();
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     const response = await fetch(url, { headers });
@@ -65,7 +60,7 @@ export async function fetchContributorStats(
         ? new Date(parseInt(rateLimitReset) * 1000).toLocaleTimeString()
         : 'unknown';
       throw new GitHubAPIError(
-        `Rate limited. Resets at ${resetTime}. Add a GitHub token for higher limits.`,
+        `Rate limited. Resets at ${resetTime}. Try again later.`,
         403,
         repo,
       );
@@ -93,17 +88,30 @@ export async function fetchContributorStats(
   );
 }
 
-export function getStoredToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('gh-contributor-history-token');
-}
+/**
+ * Get the real total contributor count using the /contributors endpoint.
+ * Uses a HEAD-like request with per_page=1 and parses the Link header.
+ */
+export async function fetchTotalContributorCount(
+  repo: string,
+): Promise<number | null> {
+  const url = `${API_BASE}/repos/${repo}/contributors?per_page=1&anon=true`;
+  const headers = getHeaders();
 
-export function setStoredToken(token: string): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem('gh-contributor-history-token', token);
-}
+  try {
+    const response = await fetch(url, { headers });
+    if (response.status !== 200) return null;
 
-export function clearStoredToken(): void {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem('gh-contributor-history-token');
+    const link = response.headers.get('link');
+    if (!link) {
+      // Only one page — count the array
+      const data = await response.json();
+      return Array.isArray(data) ? data.length : null;
+    }
+
+    const match = link.match(/[?&]page=(\d+)>;\s*rel="last"/);
+    return match ? parseInt(match[1], 10) : null;
+  } catch {
+    return null;
+  }
 }
