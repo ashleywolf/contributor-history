@@ -6,7 +6,7 @@ import RepoInput from '@/components/RepoInput';
 import Toolbar from '@/components/Toolbar';
 import EmbedSnippet from '@/components/EmbedSnippet';
 import { fetchContributorStats, fetchTotalContributorCount } from '@/lib/github';
-import { transformToContributorSeries } from '@/lib/transform';
+import { transformToContributorSeries, scaleSeriesToTotal } from '@/lib/transform';
 import { parseHash, buildHash } from '@/lib/url';
 import { getColor } from '@/lib/colors';
 import { RepoEntry, RepoContributorSeries, ChartSettings } from '@/lib/types';
@@ -44,17 +44,19 @@ export default function Home() {
 
       try {
         const stats = await fetchContributorStats(repo);
-        const data = transformToContributorSeries(stats);
+        const rawData = transformToContributorSeries(stats);
         const color = getRepoColor(repo);
 
         // Get real total from /contributors endpoint (stats API caps at 100)
         const realTotal = await fetchTotalContributorCount(repo);
+        const total = realTotal ?? stats.length;
+        const data = scaleSeriesToTotal(rawData, total);
 
         setSeries((prev) => {
           const filtered = prev.filter((s) => s.repo !== repo);
           return [
             ...filtered,
-            { repo, data, totalContributors: realTotal ?? stats.length, color, visible: true },
+            { repo, data, totalContributors: total, color, visible: true },
           ].sort((a, b) => a.repo.localeCompare(b.repo));
         });
       } catch (err: any) {

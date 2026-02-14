@@ -42,6 +42,25 @@ export function transformToContributorSeries(
 }
 
 /**
+ * Scale a cumulative series so that the final value matches the real total.
+ * The stats API caps at ~100 contributors, but we know the real count from
+ * the /contributors endpoint. Scaling preserves the growth curve shape.
+ */
+export function scaleSeriesToTotal(
+  data: ContributorDataPoint[],
+  realTotal: number,
+): ContributorDataPoint[] {
+  if (!data.length || realTotal <= 0) return data;
+  const apiTotal = data[data.length - 1].cumulativeContributors;
+  if (apiTotal <= 0 || apiTotal >= realTotal) return data;
+  const scale = realTotal / apiTotal;
+  return data.map((d) => ({
+    date: d.date,
+    cumulativeContributors: Math.round(d.cumulativeContributors * scale),
+  }));
+}
+
+/**
  * Normalize a series to start at Day 0 for timeline comparison mode.
  */
 export function normalizeToDay0(
