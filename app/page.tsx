@@ -43,10 +43,14 @@ export default function Home() {
       });
 
       try {
-        // Fetch stats first (may need retries while GitHub computes)
         const stats = await fetchContributorStats(repo);
-        // Then paginate for the full contributor list
-        const allContributors = await fetchAllContributors(repo);
+        // Try to get full contributor list; gracefully degrade if rate-limited
+        let allContributors: Awaited<ReturnType<typeof fetchAllContributors>> = [];
+        try {
+          allContributors = await fetchAllContributors(repo);
+        } catch {
+          // Rate limited — just use stats data
+        }
         const total = allContributors.length > stats.length ? allContributors.length : stats.length;
         const data = buildAccurateSeries(stats, allContributors, total);
         const color = getRepoColor(repo);

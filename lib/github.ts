@@ -1,8 +1,8 @@
 import { GitHubContributorStats } from './types';
 
 const API_BASE = 'https://api.github.com';
-const MAX_RETRIES = 8;
-const RETRY_DELAY_MS = 3000;
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 2000;
 
 function getHeaders(): Record<string, string> {
   return {
@@ -105,7 +105,7 @@ export async function fetchAllContributors(
   let page = 1;
 
   while (true) {
-    const url = `${API_BASE}/repos/${repo}/contributors?per_page=100&anon=true&page=${page}`;
+    const url = `${API_BASE}/repos/${repo}/contributors?per_page=100&page=${page}`;
     const response = await fetch(url, { headers });
 
     if (response.status === 403) {
@@ -120,8 +120,8 @@ export async function fetchAllContributors(
     all.push(...data.map((c: any) => ({ login: c.login, contributions: c.contributions })));
     page++;
 
-    // Safety cap to avoid burning all rate limit
-    if (page > 50) break;
+    // Cap at 5 pages (500 contributors) to conserve rate limit
+    if (page > 5) break;
   }
 
   return all;
