@@ -5,8 +5,8 @@ import ContributorChart from '@/components/ContributorChart';
 import RepoInput from '@/components/RepoInput';
 import Toolbar from '@/components/Toolbar';
 import EmbedSnippet from '@/components/EmbedSnippet';
-import { fetchContributorStats, fetchTotalContributorCount } from '@/lib/github';
-import { transformToContributorSeries, scaleSeriesToTotal } from '@/lib/transform';
+import { fetchContributorStats, fetchAllContributors } from '@/lib/github';
+import { buildAccurateSeries } from '@/lib/transform';
 import { parseHash, buildHash } from '@/lib/url';
 import { getColor } from '@/lib/colors';
 import { RepoEntry, RepoContributorSeries, ChartSettings } from '@/lib/types';
@@ -43,14 +43,14 @@ export default function Home() {
       });
 
       try {
-        const stats = await fetchContributorStats(repo);
-        const rawData = transformToContributorSeries(stats);
+        // Fetch both data sources in parallel
+        const [stats, allContributors] = await Promise.all([
+          fetchContributorStats(repo),
+          fetchAllContributors(repo),
+        ]);
+        const data = buildAccurateSeries(stats, allContributors);
+        const total = allContributors.length || stats.length;
         const color = getRepoColor(repo);
-
-        // Get real total from /contributors endpoint (stats API caps at 100)
-        const realTotal = await fetchTotalContributorCount(repo);
-        const total = realTotal ?? stats.length;
-        const data = scaleSeriesToTotal(rawData, total);
 
         setSeries((prev) => {
           const filtered = prev.filter((s) => s.repo !== repo);

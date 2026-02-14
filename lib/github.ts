@@ -38,7 +38,6 @@ export async function fetchContributorStats(
     if (response.status === 200) {
       const data = await response.json();
       if (Array.isArray(data)) return data;
-      // GitHub sometimes returns {} when stats aren't ready yet — treat like 202
       if (data && typeof data === 'object' && Object.keys(data).length === 0) {
         onRetry?.(attempt + 1);
         await sleep(RETRY_DELAY_MS * (attempt + 1));
@@ -48,7 +47,6 @@ export async function fetchContributorStats(
     }
 
     if (response.status === 202) {
-      // GitHub is computing stats, retry after delay
       onRetry?.(attempt + 1);
       await sleep(RETRY_DELAY_MS * (attempt + 1));
       continue;
@@ -88,30 +86,43 @@ export async function fetchContributorStats(
   );
 }
 
+/** Minimal contributor info from the paginated /contributors endpoint. */
+export interface ContributorSummary {
+  login: string;
+  contributions: number;
+}
+
 /**
- * Get the real total contributor count using the /contributors endpoint.
- * Uses a HEAD-like request with per_page=1 and parses the Link header.
+ * Fetch ALL contributors via the paginated /contributors endpoint.
+ * Returns them sorted by contributions descending (GitHub's default).
+ * Much more accurate than /stats/contributors which caps at 100.
  */
-export async function fetchTotalContributorCount(
+export async function fetchAllContributors(
   repo: string,
-): Promise<number | null> {
-  const url = `${API_BASE}/repos/${repo}/contributors?per_page=1&anon=true`;
+): Promise<ContributorSummary[]> {
   const headers = getHeaders();
+  const all: ContributorSummary[] = [];
+  let page = 1;
 
-  try {
+  while (true) {
+    const url = `${API_BASE}/repos/${repo}/contributors?per_page=100&page=${page}`;
     const response = await fetch(url, { headers });
-    if (response.status !== 200) return null;
 
-    const link = response.headers.get('link');
-    if (!link) {
-      // Only one page — count the array
-      const data = await response.json();
-      return Array.isArray(data) ? data.length : null;
+    if (response.status === 403) {
+      // Rate limited — return what we have so far
+      break;
     }
+    if (response.status !== 200) break;
 
-    const match = link.match(/[?&]page=(\d+)>;\s*rel="last"/);
-    return match ? parseInt(match[1], 10) : null;
-  } catch {
-    return null;
+    const data = await response.json();
+    if (!Array.isArray(data) || data.length === 0) break;
+
+    all.push(...data.map((c: any) => ({ login: c.login, contributions: c.contributions })));
+    page++;
+
+    // Safety cap to avoid burning all rate limit
+    if (page > 50) break;
   }
+
+  return all;
 }

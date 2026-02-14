@@ -1,4 +1,5 @@
 import { GitHubContributorStats, ContributorDataPoint } from './types';
+import { ContributorSummary } from './github';
 
 /**
  * Transform raw GitHub contributor stats into a cumulative unique contributors
@@ -10,26 +11,21 @@ export function transformToContributorSeries(
 ): ContributorDataPoint[] {
   if (!stats.length) return [];
 
-  // Find the first week with any commit across all contributors
   const allWeekTimestamps = stats[0]?.weeks.map((w) => w.w) ?? [];
   if (!allWeekTimestamps.length) return [];
 
-  // For each contributor, find the index of their first non-zero commit week
   const firstCommitWeekIndex: number[] = stats.map((contributor) => {
     const idx = contributor.weeks.findIndex((w) => w.c > 0);
     return idx === -1 ? Infinity : idx;
   });
 
-  // Build cumulative series
   const series: ContributorDataPoint[] = [];
   let cumulative = 0;
 
   for (let weekIdx = 0; weekIdx < allWeekTimestamps.length; weekIdx++) {
-    // Count new contributors this week
     const newThisWeek = firstCommitWeekIndex.filter((i) => i === weekIdx).length;
     cumulative += newThisWeek;
 
-    // Only add points where we have at least 1 contributor
     if (cumulative > 0) {
       series.push({
         date: new Date(allWeekTimestamps[weekIdx] * 1000),
@@ -42,22 +38,63 @@ export function transformToContributorSeries(
 }
 
 /**
- * Scale a cumulative series so that the final value matches the real total.
- * The stats API caps at ~100 contributors, but we know the real count from
- * the /contributors endpoint. Scaling preserves the growth curve shape.
+ * Build an accurate cumulative series by merging:
+ * - /stats/contributors (top 100, with weekly first-commit timestamps)
+ * - /contributors paginated (all contributors, with commit counts but no dates)
+ *
+ * For contributors beyond the stats API's top 100, we distribute them across
+ * the timeline proportionally — lower commit-count contributors likely joined
+ * later, and we use the growth rate from the known data to place them.
  */
-export function scaleSeriesToTotal(
-  data: ContributorDataPoint[],
-  realTotal: number,
+export function buildAccurateSeries(
+  stats: GitHubContributorStats[],
+  allContributors: ContributorSummary[],
 ): ContributorDataPoint[] {
-  if (!data.length || realTotal <= 0) return data;
-  const apiTotal = data[data.length - 1].cumulativeContributors;
-  if (apiTotal <= 0 || apiTotal >= realTotal) return data;
-  const scale = realTotal / apiTotal;
-  return data.map((d) => ({
-    date: d.date,
-    cumulativeContributors: Math.round(d.cumulativeContributors * scale),
-  }));
+  const baseSeries = transformToContributorSeries(stats);
+  if (!baseSeries.length) return baseSeries;
+
+  const statsCount = stats.length;
+  const totalCount = allContributors.length;
+  const extra = totalCount - statsCount;
+
+  // If paginated data didn't return more than stats, use base series as-is
+  if (extra <= 0) return baseSeries;
+
+  // The base series shows when each of the top N contributors first appeared.
+  // The remaining contributors have fewer commits and likely joined over time.
+  // Distribute them proportionally to the growth rate of the known curve:
+  // weeks where more known contributors joined also likely saw more unknown ones.
+
+  // Calculate how many new contributors joined each week in the known data
+  const weeklyNew: number[] = [];
+  weeklyNew.push(baseSeries[0].cumulativeContributors);
+  for (let i = 1; i < baseSeries.length; i++) {
+    weeklyNew.push(
+      baseSeries[i].cumulativeContributors - baseSeries[i - 1].cumulativeContributors,
+    );
+  }
+
+  const totalKnownNew = weeklyNew.reduce((a, b) => a + b, 0);
+
+  // Distribute extra contributors proportionally
+  let distributed = 0;
+  const result: ContributorDataPoint[] = [];
+
+  for (let i = 0; i < baseSeries.length; i++) {
+    const proportion = weeklyNew[i] / totalKnownNew;
+    const extraThisWeek = i === baseSeries.length - 1
+      ? extra - distributed // ensure we hit exact total on the last point
+      : Math.round(proportion * extra);
+    distributed += extraThisWeek;
+
+    const prevCumulative = i > 0 ? result[i - 1].cumulativeContributors : 0;
+    result.push({
+      date: baseSeries[i].date,
+      cumulativeContributors: prevCumulative + weeklyNew[i] + extraThisWeek,
+    });
+  }
+
+  return result;
 }
 
 /**
