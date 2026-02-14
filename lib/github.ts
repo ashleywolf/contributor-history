@@ -105,7 +105,7 @@ export async function fetchAllContributors(
   let page = 1;
 
   while (true) {
-    const url = `${API_BASE}/repos/${repo}/contributors?per_page=100&page=${page}`;
+    const url = `${API_BASE}/repos/${repo}/contributors?per_page=100&anon=true&page=${page}`;
     const response = await fetch(url, { headers });
 
     if (response.status === 403) {
